@@ -10,10 +10,15 @@
 package gommap
 
 import (
+	"errors"
 	"os"
 	"reflect"
 	"syscall"
 	"unsafe"
+)
+
+var (
+	ErrInvalidAdviseRegion error = errors.New("AdviseRegion offset is outside the bounds of the mapped file")
 )
 
 // The MMap type represents a memory mapped file or device. The slice offers
@@ -102,6 +107,22 @@ func (mmap MMap) Sync(flags SyncFlags) error {
 func (mmap MMap) Advise(advice AdviseFlags) error {
 	rh := *(*reflect.SliceHeader)(unsafe.Pointer(&mmap))
 	_, _, err := syscall.Syscall(syscall.SYS_MADVISE, uintptr(rh.Data), uintptr(rh.Len), uintptr(advice))
+	if err != 0 {
+		return err
+	}
+	return nil
+}
+
+// AdviseRegion advises the kernel about upcoming actions on a mapped
+// subset of the memmory mapped file.  This is useful when a very large
+// file is mappaed and the accesses may swing outside a typical kernel cache
+// It is basically a poormans preload architecture
+func (mmap MMap) AdviseRegion(offset, size int64, advice AdviseFlags) error {
+	if (offset+size) >= int64(len(mmap)) || offset < 0 || size <= 0 {
+		return ErrInvalidAdviseRegion
+	}
+	base := unsafe.Pointer(&mmap[offset])
+	_, _, err := syscall.Syscall(syscall.SYS_MADVISE, uintptr(base), uintptr(size), uintptr(advice))
 	if err != 0 {
 		return err
 	}

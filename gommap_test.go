@@ -1,7 +1,7 @@
 package gommap_test
 
 import (
-	"github.com/tysontate/gommap"
+	"github.com/traetox/gommap"
 	"io/ioutil"
 	. "launchpad.net/gocheck"
 	"os"
@@ -102,6 +102,27 @@ func (s *S) TestAdvise(c *C) {
 
 	// A bit tricky to blackbox-test these.
 	err = mmap.Advise(gommap.MADV_RANDOM)
+	c.Assert(err, IsNil)
+
+	err = mmap.Advise(9999)
+	c.Assert(err, ErrorMatches, "invalid argument")
+}
+
+func (s *S) TestAdviseRegion(c *C) {
+	mmap, err := gommap.Map(s.file.Fd(), gommap.PROT_READ|gommap.PROT_WRITE, gommap.MAP_PRIVATE)
+	c.Assert(err, IsNil)
+	defer mmap.UnsafeUnmap()
+
+	// A bit tricky to blackbox-test these.
+	err = mmap.Advise(gommap.MADV_RANDOM)
+	c.Assert(err, IsNil)
+
+	//get size of file
+	fi, err := s.file.Stat()
+	c.Assert(err, IsNil)
+	half := fi.Size() / 2
+	offset := fi.Size() / 4
+	err = mmap.AdviseRegion(offset, half, gommap.MADV_WILLNEED|gommap.MADV_SEQUENTIAL|gommap.MADV_NORMAL)
 	c.Assert(err, IsNil)
 
 	err = mmap.Advise(9999)
