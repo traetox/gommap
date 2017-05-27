@@ -121,7 +121,8 @@ func (mmap MMap) AdviseRegion(offset, size int64, advice AdviseFlags) error {
 	if (offset+size) >= int64(len(mmap)) || offset < 0 || size <= 0 {
 		return ErrInvalidAdviseRegion
 	}
-	rh := *(*reflect.SliceHeader)(unsafe.Pointer(&mmap[offset:]))
+	v := mmap[offset:]
+	rh := *(*reflect.SliceHeader)(unsafe.Pointer(&v))
 	_, _, err := syscall.Syscall(syscall.SYS_MADVISE, uintptr(rh.Data), uintptr(rh.Len), uintptr(advice))
 	if err != 0 {
 		return err
